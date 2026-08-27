@@ -2,6 +2,7 @@ import "./resolveAssetSourcePolyfill";
 
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import type { Routes } from "./Route";
@@ -53,6 +54,12 @@ import { SixteenBitTextures } from "./SixteenBitTextures";
 import "fast-text-encoding";
 window.parent = window;
 const CI = process.env.CI === "true";
+const getInitialRouteName = (): keyof Routes => {
+  if (CI) {
+    return "Tests";
+  }
+  return __DEV__ && Platform.OS === "ios" ? "SurfaceChurn" : "Home";
+};
 
 const Stack = createStackNavigator<Routes>();
 
@@ -65,7 +72,7 @@ function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName={CI ? "Tests" : "Home"}
+          initialRouteName={getInitialRouteName()}
           screenOptions={{ cardStyle: { flex: 1 } }}
         >
           <Stack.Screen name="Home" component={Home} />

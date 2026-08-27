@@ -2,6 +2,7 @@
 #import <Foundation/Foundation.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <QuartzCore/CATransaction.h>
+#import <dispatch/dispatch.h>
 
 #include "webgpu/webgpu_cpp.h"
 
@@ -16,6 +17,15 @@ namespace rnwgpu {
 // behavior: identical colors, with the extra precision of float16.
 void applyCAMetalLayerColorSpace(void *nativeSurface,
                                  wgpu::TextureFormat format) {
+#if DEBUG
+  static dispatch_once_t threadCheck;
+  dispatch_once(&threadCheck, ^{
+    NSLog(@"[cametal-repro] CAMetalLayer main-thread check: %@",
+          NSThread.isMainThread ? @"PASS" : @"FAIL");
+  });
+  NSCAssert(NSThread.isMainThread,
+            @"CAMetalLayer mutations must run on the main thread");
+#endif
   CALayer *layer = (__bridge CALayer *)nativeSurface;
   if (![layer isKindOfClass:[CAMetalLayer class]]) {
     return;

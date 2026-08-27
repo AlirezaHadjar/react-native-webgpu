@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, ScrollView, Text, View } from "react-native";
+import { Button, Platform, ScrollView, Text, View } from "react-native";
 import type { CanvasRef } from "react-native-webgpu";
 import { Canvas } from "react-native-webgpu";
 
@@ -26,7 +26,7 @@ import {
 // and a stream of validation errors.
 export const SurfaceChurn = () => {
   const { log, append } = useDiagnosticLog();
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(Platform.OS === "ios");
   const [epoch, setEpoch] = useState(0);
   const ref = useRef<CanvasRef>(null);
   const deviceRef = useRef<{
@@ -86,8 +86,8 @@ export const SurfaceChurn = () => {
       <View style={diagnosticStyles.controls}>
         <Text style={diagnosticStyles.description}>
           Remounts the canvas every 400ms while rendering every frame, flipping
-          the transparent flag every third remount. Expected: flicker, but no
-          crash and no validation errors. Leave it running for a minute.
+          the transparent flag every third remount. On iOS Debug, the native
+          assertion stops when CAMetalLayer is mutated off the main thread.
         </Text>
         <Button
           title={running ? "Stop churn" : "Start churn"}
