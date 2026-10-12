@@ -1,0 +1,27 @@
+{
+  "name": "webgpu-skia-serializer-repro",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "prebuild": "expo prebuild",
+    "android": "expo run:android --variant release",
+    "ios": "expo run:ios --configuration Release"
+  },
+  "dependencies": {
+    "expo": "57.0.27",
+    "expo-build-properties": "57.0.22",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-reanimated": "4.7.1",
+    "react-native-skia": "3.4.0",
+    "react-native-webgpu": "file:../../packages/webgpu",
+    "react-native-worklets": "0.13.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7.29.7",
+    "@types/node": "^20.14.7",
+    "typescript": "npm:tsover@6.0.2"
+  }
+}

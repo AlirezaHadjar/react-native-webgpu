@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Serializer collision repro",
+    "slug": "webgpu-skia-serializer-repro",
+    "scheme": "serializer-repro",
+    "version": "1.0.0",
+    "android": { "package": "dev.webgpu.serializercollision" },
+    "ios": { "bundleIdentifier": "dev.webgpu.serializercollision" },
+    "plugins": [
+      "react-native-webgpu",
+      ["expo-build-properties", { "android": { "minSdkVersion": 26 } }]
+    ]
+  }
+}
