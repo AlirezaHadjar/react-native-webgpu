@@ -35,22 +35,26 @@ adb shell am start -W -a android.intent.action.VIEW -d 'serializer-repro://run?o
 
 - `order`: `webgpu-first` or `skia-first`.
 - `test=transfer`: sends the object to a UI worklet using `scheduleOnUI`.
+- `test=roundtrip`: sends the object to a UI worklet, which sends it back with
+  `scheduleOnRN`. This runs the serializers' `determine` on the UI runtime.
 - `test=direct`: explicitly boxes a Skia rectangle using each library's box
   function. A caught WebGPU unbox failure plus a successful Skia unbox
   distinguish the two native decoders that use the same error wording.
-- `kind`: `rect`, `paint`, `plain`, or `buffer`. The GPU buffer control uses a
-  real adapter/device and has no rendering or GPU error listener.
+- `kind`: `rect`, `paint`, `plain`, `buffer`, or `proto`. The GPU buffer control
+  uses a real adapter/device and has no rendering or GPU error listener.
+  `proto` (round trip only) is created on the UI runtime with a custom
+  prototype, so it reaches the custom serializer loop there.
 
 Stock behavior: WebGPU-first transfers of a Skia rectangle or paint crash during
 unboxing; Skia-first transfers succeed. Direct WebGPU boxing of a Skia rectangle
 succeeds but its unbox throws the missing-class error, in either order.
 
-With the proposed ownership fix (`__webgpuIsWebGPUObject` only accepts native
-state whose C++ type is the registered WebGPU class), WebGPU's serializer no
-longer claims Skia objects, so every transfer case succeeds in either order. The
-direct test then reports `webgpuAccepts: false`; calling `__webgpuBox` by hand
-still produces an unboxable wrapper. Plain objects and genuine GPU buffers
-transfer in both builds.
+With the proposed fix, WebGPU's serializer only claims objects whose prototype
+carries WebGPU's `__webgpuBox` method, so it no longer claims Skia objects and
+every transfer and round trip succeeds in either order. The direct test then
+reports `webgpuAccepts: false`; calling the global `__webgpuBox` by hand still
+produces an unboxable wrapper. Plain objects, custom-prototype objects, and
+genuine GPU buffers transfer in both builds.
 
 ## Repeat and preserve evidence
 

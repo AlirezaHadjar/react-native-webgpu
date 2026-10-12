@@ -49,6 +49,7 @@ async function run(url, complete) {
   if (kind === "rect") value = Skia.XYWHRect(1, 2, 3, 4);
   else if (kind === "paint") value = Skia.Paint();
   else if (kind === "plain") value = { x: 1, y: 2, width: 3, height: 4 };
+  else if (kind === "proto") value = null;
   else if (kind === "buffer") {
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error("No GPU adapter");
@@ -63,8 +64,10 @@ async function run(url, complete) {
   const brand = Object.prototype.toString.call(value);
   message("classify", {
     brand,
-    webgpuAccepts: globalThis.__webgpuIsWebGPUObject(value),
-    skiaAccepts: typeof value.__box === "function",
+    webgpuAccepts: globalThis.__webgpuIsWebGPUObject
+      ? globalThis.__webgpuIsWebGPUObject(value)
+      : typeof value?.__webgpuBox === "function",
+    skiaAccepts: typeof value?.__box === "function",
   });
 
   if (test === "direct") {
@@ -98,6 +101,41 @@ async function run(url, complete) {
     message("done", { order, test, kind });
     complete("Direct boxing complete; inspect SERIALIZER_REPRO logs.");
     device?.destroy();
+    return;
+  }
+  if (test === "roundtrip") {
+    message("schedule", { order, test, kind });
+    scheduleOnUI(
+      (object, objectKind, callback, onError) => {
+        "worklet";
+        try {
+          const back =
+            objectKind === "proto"
+              ? Object.create({ marker: 1 }, { x: { value: 1, enumerable: true } })
+              : object;
+          scheduleOnRN(callback, back);
+        } catch (error) {
+          scheduleOnRN(onError, String(error));
+        }
+      },
+      value,
+      kind,
+      (back) => {
+        let result;
+        if (kind === "buffer") result = { size: back.size, label: back.label };
+        else if (kind === "paint") result = { strokeWidth: back.getStrokeWidth() };
+        else if (kind === "proto") result = { x: back.x, marker: back.marker };
+        else result = describeRect(back);
+        message("received", { order, test, kind, result });
+        message("done", { order, test, kind });
+        complete(JSON.stringify(result));
+        device?.destroy();
+      },
+      (error) => {
+        message("worklet-error", { order, test, kind, error });
+        complete(error);
+      },
+    );
     return;
   }
   if (test !== "transfer") throw new Error(`Unknown test: ${test}`);

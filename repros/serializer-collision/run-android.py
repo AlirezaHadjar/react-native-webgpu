@@ -16,7 +16,8 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--serial', required=True)
 parser.add_argument('--repetitions', type=int, default=5)
 parser.add_argument('--expect', choices=['baseline', 'fixed'], default='baseline')
-parser.add_argument('--kinds', nargs='+', choices=['rect', 'paint', 'plain', 'buffer'])
+parser.add_argument('--kinds', nargs='+', choices=['rect', 'paint', 'plain', 'buffer', 'proto'])
+parser.add_argument('--tests', nargs='+', choices=['direct', 'transfer', 'roundtrip'])
 parser.add_argument('--output', type=Path, default=Path(__file__).parent / 'results')
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
@@ -94,10 +95,16 @@ baseline = {
     ('skia-first', 'transfer', 'buffer'): 'success',
     ('webgpu-first', 'transfer', 'paint'): 'crash',
     ('skia-first', 'transfer', 'paint'): 'success',
+    ('webgpu-first', 'roundtrip', 'rect'): 'crash',
+    ('skia-first', 'roundtrip', 'rect'): 'success',
+    ('webgpu-first', 'roundtrip', 'buffer'): 'success',
+    ('skia-first', 'roundtrip', 'buffer'): 'success',
+    ('webgpu-first', 'roundtrip', 'proto'): 'success',
+    ('skia-first', 'roundtrip', 'proto'): 'success',
 }
 fixed = {case: 'direct-not-claimed' if case[1] == 'direct' else 'success' for case in baseline}
 cases = [(*case, (fixed if args.expect == 'fixed' else baseline)[case]) for case in baseline
-         if not args.kinds or case[2] in args.kinds]
+         if (not args.kinds or case[2] in args.kinds) and (not args.tests or case[1] in args.tests)]
 
 results = []
 for order, test, kind, expected in cases:
@@ -129,6 +136,9 @@ for order, test, kind, expected in cases:
                     if any(row.get('event') == 'setup-error' for row in data):
                         actual = 'setup-error'
                         break
+                    if any(row.get('event') == 'worklet-error' for row in data):
+                        actual = 'worklet-error'
+                        break
                     crash_brand = fatal(lines, pid)
                     if crash_brand:
                         actual = 'crash' if crash_brand != 'other' else 'crash-other'
@@ -143,7 +153,7 @@ for order, test, kind, expected in cases:
                             exited_after = round(time.monotonic() - start, 2)
                             break
                         time.sleep(.2)
-                elif actual not in ['timeout', 'setup-error']:
+                elif actual not in ['timeout', 'setup-error', 'worklet-error']:
                     time.sleep(.5)
                     if pid not in adb('shell', 'pidof', PACKAGE, check=False).stdout.split():
                         actual = 'exited'
