@@ -17,12 +17,13 @@ yarn install
 yarn workspace react-native-webgpu build:plugin
 cd repros/serializer-collision
 npm install --install-links --workspaces=false --legacy-peer-deps
-npm run android
+npm run android   # or: npm run ios
 ```
 
 The app has its own package identifier, `dev.webgpu.serializercollision`, and
 runs independently of the upstream example app. The Android build needs Java 17
-and the Android SDK. Generated native projects and device logs are ignored.
+and the Android SDK; the iOS build needs Xcode and CocoaPods. Generated native
+projects and device logs are ignored.
 
 ## Cases
 
@@ -31,6 +32,15 @@ Open a URL in a fresh app process:
 ```sh
 adb shell am force-stop dev.webgpu.serializercollision
 adb shell am start -W -a android.intent.action.VIEW -d 'serializer-repro://run?order=webgpu-first&test=transfer&kind=rect' dev.webgpu.serializercollision
+```
+
+On an iOS simulator, launch the app before opening the URL; otherwise iOS asks
+"Open in ...?" first:
+
+```sh
+xcrun simctl terminate booted dev.webgpu.serializercollision
+xcrun simctl launch booted dev.webgpu.serializercollision
+xcrun simctl openurl booted 'serializer-repro://run?order=webgpu-first&test=transfer&kind=rect'
 ```
 
 - `order`: `webgpu-first` or `skia-first`.
@@ -45,9 +55,12 @@ adb shell am start -W -a android.intent.action.VIEW -d 'serializer-repro://run?o
   `proto` (round trip only) is created on the UI runtime with a custom
   prototype, so it reaches the custom serializer loop there.
 
-Stock behavior: WebGPU-first transfers of a Skia rectangle or paint crash during
-unboxing; Skia-first transfers succeed. Direct WebGPU boxing of a Skia rectangle
-succeeds but its unbox throws the missing-class error, in either order.
+Stock behavior: WebGPU-first transfers and round trips of a Skia rectangle or
+paint crash during unboxing; Skia-first transfers succeed. Android reports a
+fatal `RuntimeException`, iOS aborts on an uncaught `std::runtime_error`, both
+with the same `Failed to deserialize CustomSerializable` message. Direct WebGPU
+boxing of a Skia rectangle succeeds but its unbox throws the missing-class
+error, in either order.
 
 With the proposed fix, WebGPU's serializer only claims objects whose prototype
 carries WebGPU's `__webgpuBox` method, so it no longer claims Skia objects and
@@ -59,16 +72,18 @@ genuine GPU buffers transfer in both builds.
 ## Repeat and preserve evidence
 
 ```sh
-python3 run-android.py --serial DEVICE_SERIAL --repetitions 5 --expect baseline   # stock WebGPU
-python3 run-android.py --serial DEVICE_SERIAL --repetitions 5 --expect fixed      # with the fix
+node run-trials.mjs --serial DEVICE_SERIAL --expect baseline     # Android, stock WebGPU
+node run-trials.mjs --simulator SIMULATOR_UDID --expect fixed    # iOS simulator, with the fix
 ```
 
-The phone must be unlocked with the screen on: behind a secure keyguard,
-`navigator.gpu.requestAdapter()` does not resolve and the buffer cases time out.
-`--kinds buffer` reruns a subset.
+Each case runs five times by default (`--repetitions`); `--kinds buffer,rect`
+and `--tests roundtrip` select a subset. An Android phone must be unlocked with
+the screen on: behind a secure keyguard, `navigator.gpu.requestAdapter()` does
+not resolve and the buffer cases time out.
 
-The runner cold-starts each case, records logs without clearing the device's
-log buffers, and only reads lines from the PID that logged the case's `start`
-event. A crash is an `AndroidRuntime` fatal exception for that PID; the
-missing-class brand and whether the process exited within five seconds are
-recorded separately. Outcomes and a summary are written to `--output`.
+The runner cold-starts each case and only reads log lines from the process that
+logged the case's `start` event. On Android a crash is an `AndroidRuntime` fatal
+exception for that process; on iOS it is that process exiting, with the brand
+read from the app's stderr. The missing-class brand and whether the process
+exited within five seconds are recorded separately. Outcomes and a summary are
+written to `--output`.
