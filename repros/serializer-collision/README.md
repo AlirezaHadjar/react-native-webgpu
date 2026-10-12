@@ -36,9 +36,8 @@ adb shell am start -W -a android.intent.action.VIEW -d 'serializer-repro://run?o
 - `order`: `webgpu-first` or `skia-first`.
 - `test=transfer`: sends the object to a UI worklet using `scheduleOnUI`.
 - `test=direct`: explicitly boxes a Skia rectangle using each library's box
-  function. A caught WebGPU unbox failure (stock) or rejected WebGPU box
-  (fixed), plus a successful Skia unbox, distinguish the two native decoders
-  that use the same error wording.
+  function. A caught WebGPU unbox failure plus a successful Skia unbox
+  distinguish the two native decoders that use the same error wording.
 - `kind`: `rect`, `paint`, `plain`, or `buffer`. The GPU buffer control uses a
   real adapter/device and has no rendering or GPU error listener.
 
@@ -46,10 +45,11 @@ Stock behavior: WebGPU-first transfers of a Skia rectangle or paint crash during
 unboxing; Skia-first transfers succeed. Direct WebGPU boxing of a Skia rectangle
 succeeds but its unbox throws the missing-class error, in either order.
 
-With the proposed ownership fix (`__webgpuIsWebGPUObject` and `__webgpuBox` only accept
-native state whose C++ type is the registered WebGPU class), WebGPU rejects Skia
-objects outright, so every transfer case succeeds in either order and direct
-WebGPU boxing of a Skia rectangle throws. Plain objects and genuine GPU buffers
+With the proposed ownership fix (`__webgpuIsWebGPUObject` only accepts native
+state whose C++ type is the registered WebGPU class), WebGPU's serializer no
+longer claims Skia objects, so every transfer case succeeds in either order. The
+direct test then reports `webgpuAccepts: false`; calling `__webgpuBox` by hand
+still produces an unboxable wrapper. Plain objects and genuine GPU buffers
 transfer in both builds.
 
 ## Repeat and preserve evidence

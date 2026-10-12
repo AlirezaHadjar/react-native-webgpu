@@ -76,6 +76,9 @@ def direct_outcome(data):
         return 'direct-invalid'
     if box[-1].get('success') is False:
         return 'direct-rejected'
+    classify = [row for row in data if row.get('event') == 'classify']
+    if classify and classify[-1].get('webgpuAccepts') is False:
+        return 'direct-not-claimed'
     if wrong and wrong[-1].get('success') is False and MISSING_CLASS in wrong[-1].get('error', ''):
         return 'direct-wrong-decoder'
     return 'direct-invalid'
@@ -92,7 +95,7 @@ baseline = {
     ('webgpu-first', 'transfer', 'paint'): 'crash',
     ('skia-first', 'transfer', 'paint'): 'success',
 }
-fixed = {case: 'direct-rejected' if case[1] == 'direct' else 'success' for case in baseline}
+fixed = {case: 'direct-not-claimed' if case[1] == 'direct' else 'success' for case in baseline}
 cases = [(*case, (fixed if args.expect == 'fixed' else baseline)[case]) for case in baseline
          if not args.kinds or case[2] in args.kinds]
 
